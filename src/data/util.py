@@ -1,4 +1,5 @@
 import glob
+import json
 import os
 from typing import Union, Optional
 
@@ -82,3 +83,49 @@ def pad_or_truncate(waveform, max_length):
         pad_amount = max_length - length
         return torch.nn.functional.pad(waveform, (0, pad_amount))
     return waveform
+
+def load_jsons_as_dict(json_paths):
+    """ key is filename, value is the dict of each json file."""
+    result = {}
+    for path in json_paths:
+        filename = os.path.splitext(os.path.basename(path))[0]
+        with open(path, 'r') as f:
+            data = json.load(f)  # each file contains one dict
+        result[filename] = data
+    return result
+
+def save_json(file: dict, path: str):
+    with open(path, 'w') as f:
+        json.dump(file, f)
+
+
+import pandas as pd
+import io
+
+def read_audioset_csv(filepath):
+    # What a degenerate csv
+    with open(filepath, 'r') as f:
+        lines = f.readlines()
+
+    # Find the last comment line as header
+    header_line = ''
+    data_start_idx = 0
+    for idx, line in enumerate(lines):
+        if line.startswith('#'):
+            header_line = line.lstrip('# ').strip()
+            data_start_idx = idx + 1
+
+    # Rebuild the CSV content: header + data
+    data_str = header_line + '\n' + ''.join(lines[data_start_idx:])
+
+    df = pd.read_csv(
+        io.StringIO(data_str),
+        quotechar='"',
+        skipinitialspace=True
+    )
+    # Split the positive_labels column into a list of strings
+    df['positive_labels'] = df['positive_labels'].str.split(',')
+
+    return df
+
+
